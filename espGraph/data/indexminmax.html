@@ -1,0 +1,258 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Environnement</title>
+  <meta charset="utf-8"/>
+  <script src="Chart.bundle.min.js"></script>
+  <script src="utils.js"></script>
+  <script src="papaparse.min.js"></script>
+  <script src="mytooltips.js"></script>
+  <script src="moment.js"></script>
+  <style>
+  canvas {
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+  }
+  #chartjs-tooltip {
+    opacity: 1;
+    position: absolute;
+    background: rgba(0, 0, 0, .7);
+    color: white;
+    border-radius: 3px;
+    -webkit-transition: all .1s ease;
+    transition: all .1s ease;
+    pointer-events: none;
+    -webkit-transform: translate(-50%, 0);
+    transform: translate(-50%, 0);
+  }
+
+  .chartjs-tooltip-key {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 10px;
+  }
+  </style>
+</head>
+
+<body>
+  <div id="container" style="width: 100%;">
+    <canvas id="canvas"></canvas>
+  </div>
+  <script>
+    //var timeFormat = 'HH:mm:ss DD/MM/YYYY';
+    var timeFormat = 'DD/MM/YYYY';
+
+    // Array pour le graphique
+    var lab = [];
+    var tempmin = [];
+    var tempmax = [];
+    var hummin = [];
+    var hummax = [];
+    var presmin = [];
+    var presmax = [];
+
+    function getQueryVariable(variable){
+      var query = window.location.search.substring(1);
+      var vars = query.split("&");
+      for (var i=0;i<vars.length;i++) {
+           var pair = vars[i].split("=");
+           if(pair[0] == variable){return pair[1];}
+      }
+      return(false);
+    }
+
+    // paramètre ?
+    var maxn = getQueryVariable("maxn");
+    if(!maxn) maxn = 30;
+
+    var jour = 0;
+
+    // analyse du fichier CSV
+    Papa.parse("data.csv", {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      step: function(row) {
+	var mymoment = moment(row.data[0].label, "hh:mm:ss DD/MM/YYYY");
+	// Sommes-nous un jour différent ?
+        if(mymoment.get('date') != jour) {
+          lab.push(mymoment.format(timeFormat));
+	  // tempmax.push(parseFloat(Number(row.data[0].temp).toFixed(2))+2+1+ "");
+	  //premières valeurs on push tout
+	  tempmin.push(row.data[0].temp);
+	  tempmax.push(row.data[0].temp);
+	  hummin.push(row.data[0].hum);
+	  hummax.push(row.data[0].hum);
+	  presmin.push(row.data[0].pression);
+	  presmax.push(row.data[0].pression);
+	  jour = mymoment.get('date');
+	} else {
+	  // Même jour. La nouvelle valeur est-elle un minimum ou maximum de la journée ?
+	  // On remplace la ligne de l'array si c'est le cas.
+	  if(parseFloat(row.data[0].temp) < parseFloat(tempmin[tempmin.length-1])) {
+	    tempmin.pop(); tempmin.push(row.data[0].temp);
+	  }
+	  if(parseFloat(row.data[0].temp) > parseFloat(tempmax[tempmin.length-1])) {
+	    tempmax.pop(); tempmax.push(row.data[0].temp);
+	  }
+	  if(parseFloat(row.data[0].hum) < parseFloat(hummin[hummin.length-1])) {
+	    hummin.pop(); hummin.push(row.data[0].hum);
+	  }
+	  if(parseFloat(row.data[0].hum) > parseFloat(hummax[hummin.length-1])) {
+	    hummax.pop(); hummax.push(row.data[0].hum);
+	  }
+	  if(parseFloat(row.data[0].pression) < parseFloat(presmin[presmin.length-1])) {
+	    presmin.pop(); presmin.push(row.data[0].pression);
+	  }
+	  if(parseFloat(row.data[0].pression) > parseFloat(presmax[presmin.length-1])) {
+	    presmax.pop(); presmax.push(row.data[0].pression);
+	  }
+	}
+        // si on dépasse maxn on supprime la plus ancienne ligne
+	if(lab.length > maxn) {
+          lab.shift();
+          tempmin.shift();
+          tempmax.shift();
+          hummin.shift();
+          hummax.shift();
+          presmin.shift();
+          presmax.shift();
+        }
+      },
+      complete: function() {
+        console.log("All done!");
+      }
+    });
+
+    var color = Chart.helpers.color;
+    var barChartData = {
+      labels: lab,
+      datasets: [{
+        label: 'Température min',
+        backgroundColor: color(window.chartColors.red).alpha(0.5).rgbString(),  // couleur remplissage
+        borderColor: window.chartColors.red,  // couleur ligne
+        pointBackgroundColor: window.chartColors.red,
+//	fill: '-1',
+        fill: false,     // ligne simple
+        cubicInterpolationMode: 'monotone',
+        hidden: false,
+        data: tempmin,
+        yAxisID: 'y-axis-1',
+      }, {
+        label: 'Température max',
+        backgroundColor: color(window.chartColors.red).alpha(0.5).rgbString(),  // couleur remplissage
+        borderColor: window.chartColors.red,  // couleur ligne
+        pointBackgroundColor: window.chartColors.red,
+	fill: '-1',
+//        fill: false,     // ligne simple
+        cubicInterpolationMode: 'monotone',
+        hidden: false,
+        data: tempmax,
+        yAxisID: 'y-axis-1',
+      }, {
+        label: 'Humidité min',
+        backgroundColor: color(window.chartColors.blue).alpha(0.5).rgbString(),
+        borderColor: window.chartColors.blue,
+        pointBackgroundColor: window.chartColors.blue,
+        cubicInterpolationMode: 'monotone',
+        fill: false,
+        hidden: false,
+        data: hummin,
+        yAxisID: 'y-axis-1',
+      }, {
+        label: 'Humidité max',
+        backgroundColor: color(window.chartColors.blue).alpha(0.5).rgbString(),
+        borderColor: window.chartColors.blue,
+        pointBackgroundColor: window.chartColors.blue,
+        cubicInterpolationMode: 'monotone',
+//        fill: false,
+	fill: '-1',
+        hidden: false,
+        data: hummax,
+        yAxisID: 'y-axis-1',
+      }, {
+        label: 'Pression min',
+        backgroundColor: color(window.chartColors.yellow).alpha(0.5).rgbString(),
+        borderColor: window.chartColors.yellow,
+        pointBackgroundColor: window.chartColors.yellow,
+        cubicInterpolationMode: 'monotone',
+        fill: false,
+        data: presmin,
+        yAxisID: 'y-axis-2',
+      }, {
+        label: 'Pression max',
+        backgroundColor: color(window.chartColors.yellow).alpha(0.5).rgbString(),
+        borderColor: window.chartColors.yellow,
+        pointBackgroundColor: window.chartColors.yellow,
+        cubicInterpolationMode: 'monotone',
+//        fill: false,
+	fill: '-1',
+        data: presmax,
+        yAxisID: 'y-axis-2',
+      }]
+
+    };
+
+    window.onload = function() {
+      var ctx = document.getElementById('canvas').getContext('2d');
+      window.myBar = new Chart(ctx, {
+        type: 'line',
+        data: barChartData,
+        options: {
+          responsive: true,
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: true,
+            text: 'Station météo 1'
+          },
+          scales: {
+            xAxes: [{
+              type: 'time',
+	      ticks: {
+	        source: 'data'
+	      },
+              time: {
+	        parser: timeFormat,
+		// FIXME changement affichage label date
+		displayFormats: {
+                  'millisecond': 'DD/MM/YY ',
+                  'second': 'DD/MM/YY ',
+		  'minute': 'DD/MM/YY ',
+		  'hour': 'DD/MM/YY ',
+		  'day': 'DD/MM/YY ',
+		  'week': 'DD/MM/YY ',
+		  'month': 'DD/MM/YY ',
+		  'quarter': 'DD/MM/YY ',
+		  'year': 'DD/MM/YY ',
+		}
+              }
+            }],
+            yAxes: [{
+              type: 'linear',
+              position: 'left',
+              id: 'y-axis-1',
+              },{
+              type: 'linear',
+              position: 'right',
+              id: 'y-axis-2',
+              gridLines: {
+                drawOnChartArea: false,
+              }
+            }]
+          },
+          tooltips: {
+            enabled: false,
+            mode: 'index',
+            position: 'nearest',
+            custom: customTooltips
+          }
+        }
+      });
+    };
+  </script>
+</body>
+</html>
