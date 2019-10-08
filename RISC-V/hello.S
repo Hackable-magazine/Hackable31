@@ -12,7 +12,7 @@
 .equ BLUE,  1<<21
 
 .equ LEDCONFIG, (RED | GREEN | BLUE)
-.equ LEDCOLOR, ~BLUE
+.equ LEDCOLOR, ~GREEN
 .equ LONGWAIT,  5000000
 .equ SHORTWAIT, 1000000
 
@@ -46,6 +46,7 @@ offLed:
     lw ra, 12(sp)  
     addi sp, sp, 16 
     ret
+
 simpleWait:
     addi sp, sp, -16
     sw   ra, 12(sp)
@@ -61,7 +62,9 @@ main:
     li s1, GPIO_OUTPUT + GPIO_BASE
     li s2, GPIO_OUTPUT_VALUE + GPIO_BASE
     li s3, LEDCONFIG
+
     jal ra, ledConfig
+
 mainloop:
     li a0, LEDCOLOR
     jal ra, setColor
